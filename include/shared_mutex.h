@@ -52,6 +52,15 @@ class shared_mutex_base
     }
 
   protected:
+    static bool atomic_sub_and_notify_all_if_zero(AtomicUInt32& atom)
+    {
+        if (atom.fetch_sub(1) == 1) {
+            atom.notify_all();
+            return true;
+        }
+        return false;
+    }
+
     uint32_t try_lock_internal_()
     {
         uint32_t working_num = 0;
@@ -77,15 +86,6 @@ class shared_mutex_base
   private:
     static constexpr uint32_t k_writing_state = 0x1000'0000;
 
-    static bool atomic_sub_and_notify_all_if_zero(AtomicUInt32& atom)
-    {
-        if (atom.fetch_sub(1) == 1) {
-            atom.notify_all();
-            return true;
-        }
-        return false;
-    }
-
     template <typename Fn>
     static void atomic_wait_until_zero(const Fn fn, AtomicUInt32& atom)
     {
@@ -98,7 +98,7 @@ class shared_mutex_base
 };
 
 template <typename AtomicUInt32>
-class timed_shared_mutex_base : public shared_mutex_base<AtomicUInt32>
+class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
 {
   public:
     template <typename Rep, class Period>
@@ -112,8 +112,8 @@ class timed_shared_mutex_base : public shared_mutex_base<AtomicUInt32>
     {
         writing_num_.fetch_add(1);
         if (!atomic_wait_until_zero_with_timeout(
-                    [this] { return try_lock_internal_(); }, working_num_, timeout_time)){
-            atomic_sub_and_notify_all_if_zero(writing_num_);
+                    [this] { return try_lock_internal_(); }, working_num_, timeout_time)) {
+            shared_mutex_base<AtomicUInt32>::atomic_sub_and_notify_all_if_zero(writing_num_);
             return false;
         }
         return true;
@@ -155,7 +155,7 @@ class timed_shared_mutex_base : public shared_mutex_base<AtomicUInt32>
 }
 
 using shared_mutex = internal::shared_mutex_base<std::atomic<uint32_t>>;
-using timed_shared_mutex = internal::timed_shared_mutex_base<internal::timed_atomic_uint32_t>;
+using shared_timed_mutex = internal::shared_timed_mutex_base<internal::timed_atomic_uint32_t>;
 
 }
 

@@ -2,6 +2,8 @@
 
 #include <linux/futex.h>
 #include <sys/syscall.h>
+#include <error.h>
+#include <string.h>
 
 #include <atomic>
 #include <chrono>
@@ -35,9 +37,7 @@ class timed_atomic_uint32_t : public std::atomic_ref<uint32_t>
 
     void wait(const uint32_t value)
     {
-        if (syscall(SYS_futex, &value_, FUTEX_WAIT, value, nullptr, nullptr, 0)) {
-            abort();
-        }
+        syscall(SYS_futex, &value_, FUTEX_WAIT, value, nullptr, nullptr, 0);
     }
 
     void notify_one()

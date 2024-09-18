@@ -3,10 +3,10 @@
 
 namespace slontia {
 
-class lock_wrapper_base
+class mutex_wrapper_base
 {
     template <typename T, typename Mutex>
-    friend class lock_wrapper;
+    friend class mutex_wrapper;
 
   public:
     enum class lock_type { unique_mutable, unique_const, shared_const };
@@ -15,11 +15,11 @@ class lock_wrapper_base
     template <lock_type k_type>
     class lock_helper;
 
-    lock_wrapper_base() = default;
+    mutex_wrapper_base() = default;
 };
 
 template <>
-struct lock_wrapper_base::lock_helper<lock_wrapper_base::lock_type::shared_const>
+struct mutex_wrapper_base::lock_helper<mutex_wrapper_base::lock_type::shared_const>
 {
     static void lock(auto& mutex) { mutex.lock_shared(); }
 
@@ -40,9 +40,9 @@ struct lock_wrapper_base::lock_helper<lock_wrapper_base::lock_type::shared_const
     static void unlock(auto& mutex) { mutex.unlock_shared(); }
 };
 
-template <lock_wrapper_base::lock_type k_type>
-requires (k_type == lock_wrapper_base::lock_type::unique_mutable || k_type == lock_wrapper_base::lock_type::unique_const)
-struct lock_wrapper_base::lock_helper<k_type>
+template <mutex_wrapper_base::lock_type k_type>
+requires (k_type == mutex_wrapper_base::lock_type::unique_mutable || k_type == mutex_wrapper_base::lock_type::unique_const)
+struct mutex_wrapper_base::lock_helper<k_type>
 {
     static void lock(auto& mutex) { mutex.lock(); }
 
@@ -64,7 +64,7 @@ struct lock_wrapper_base::lock_helper<k_type>
 };
 
 template <typename T, typename Mutex>
-class lock_wrapper : private lock_wrapper_base
+class mutex_wrapper : private mutex_wrapper_base
 {
     template <lock_type k_type>
     class locked_ptr_template;
@@ -77,15 +77,15 @@ class lock_wrapper : private lock_wrapper_base
     using element_type = T;
 
     template <typename ...Args>
-    explicit lock_wrapper(Args&& ...args) : obj_{std::forward<Args>(args)...}
+    explicit mutex_wrapper(Args&& ...args) : obj_{std::forward<Args>(args)...}
     {
     }
 
-    lock_wrapper(const lock_wrapper&) = delete;
-    lock_wrapper(lock_wrapper&&) = delete;
+    mutex_wrapper(const mutex_wrapper&) = delete;
+    mutex_wrapper(mutex_wrapper&&) = delete;
 
-    lock_wrapper& operator=(const lock_wrapper&) = delete;
-    lock_wrapper& operator=(lock_wrapper&&) = delete;
+    mutex_wrapper& operator=(const mutex_wrapper&) = delete;
+    mutex_wrapper& operator=(mutex_wrapper&&) = delete;
 
     // access the mutable object with a unique lock
 
@@ -161,13 +161,13 @@ class lock_wrapper : private lock_wrapper_base
 };
 
 template <typename T, typename Mutex>
-template <lock_wrapper_base::lock_type k_type>
-class lock_wrapper<T, Mutex>::locked_ptr_template
+template <mutex_wrapper_base::lock_type k_type>
+class mutex_wrapper<T, Mutex>::locked_ptr_template
 {
-    template <lock_wrapper_base::lock_type>
+    template <mutex_wrapper_base::lock_type>
     friend class locked_ptr_template;
 
-    friend class lock_wrapper;
+    friend class mutex_wrapper;
 
   public:
     locked_ptr_template() noexcept = default;
@@ -178,10 +178,10 @@ class lock_wrapper<T, Mutex>::locked_ptr_template
 
     locked_ptr_template(const locked_ptr_template& o)
         requires (k_type == lock_type::shared_const)
-        : locked_ptr_template{o.lock_wrapper_}
+        : locked_ptr_template{o.mutex_wrapper_}
     {
-        if (lock_wrapper_) {
-            lock_wrapper_->mutex_.lock_shared();
+        if (mutex_wrapper_) {
+            mutex_wrapper_->mutex_.lock_shared();
         }
     }
 
@@ -189,21 +189,21 @@ class lock_wrapper<T, Mutex>::locked_ptr_template
 
     locked_ptr_template(locked_ptr_template<lock_type::unique_mutable>&& o) noexcept
         requires (k_type == lock_type::unique_const)
-        : locked_ptr_template{o.lock_wrapper_}
+        : locked_ptr_template{o.mutex_wrapper_}
     {
-        o.lock_wrapper_ = nullptr;
+        o.mutex_wrapper_ = nullptr;
     }
 
     ~locked_ptr_template()
     {
-        if (lock_wrapper_) {
-            lock_helper<k_type>::unlock(lock_wrapper_->mutex_);
+        if (mutex_wrapper_) {
+            lock_helper<k_type>::unlock(mutex_wrapper_->mutex_);
         }
     }
 
-    operator bool() const noexcept { return lock_wrapper_ != nullptr; }
+    operator bool() const noexcept { return mutex_wrapper_ != nullptr; }
 
-    bool operator==(std::nullptr_t) const noexcept { return lock_wrapper_ == nullptr; }
+    bool operator==(std::nullptr_t) const noexcept { return mutex_wrapper_ == nullptr; }
 
     locked_ptr_template& operator=(const locked_ptr_template&) = delete;
 
@@ -221,20 +221,20 @@ class lock_wrapper<T, Mutex>::locked_ptr_template
 
     void reset() { locked_ptr_template{}.swap(*this); }
 
-    auto& operator*() const noexcept { return lock_wrapper_->obj_; }
+    auto& operator*() const noexcept { return mutex_wrapper_->obj_; }
 
-    auto* operator->() const noexcept { return lock_wrapper_ ? &lock_wrapper_->obj_ : nullptr; }
+    auto* operator->() const noexcept { return mutex_wrapper_ ? &mutex_wrapper_->obj_ : nullptr; }
 
-    void swap(locked_ptr_template& o) noexcept { std::swap(lock_wrapper_, o.lock_wrapper_); }
+    void swap(locked_ptr_template& o) noexcept { std::swap(mutex_wrapper_, o.mutex_wrapper_); }
 
   private:
-    explicit locked_ptr_template(lock_wrapper* const wrapper) noexcept : lock_wrapper_{wrapper} {}
+    explicit locked_ptr_template(mutex_wrapper* const wrapper) noexcept : mutex_wrapper_{wrapper} {}
 
-    explicit locked_ptr_template(const lock_wrapper* const wrapper) noexcept
+    explicit locked_ptr_template(const mutex_wrapper* const wrapper) noexcept
         requires (k_type == lock_type::unique_const || k_type == lock_type::shared_const)
-        : lock_wrapper_{wrapper} {}
+        : mutex_wrapper_{wrapper} {}
 
-    std::conditional_t<k_type == lock_type::unique_mutable, lock_wrapper, const lock_wrapper>* lock_wrapper_{nullptr};
+    std::conditional_t<k_type == lock_type::unique_mutable, mutex_wrapper, const mutex_wrapper>* mutex_wrapper_{nullptr};
 };
 
 }
