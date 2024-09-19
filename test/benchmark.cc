@@ -109,7 +109,7 @@ class thread_group
     struct thread_result
     {
         std::chrono::microseconds duration_;
-        uint32_t operate_count_{0};
+        uint32_t failure_count_{0};
     };
 
   public:
@@ -119,7 +119,8 @@ class thread_group
     {
         assert(thread_num > 0);
         for (uint32_t i = 0; i < thread_num; ++i) {
-            threads_.emplace_back(&thread_group::thread_main_<Task>, std::ref(latch), task, std::ref(thread_results_[i]));
+            threads_.emplace_back(&thread_group::thread_main_<Task>, std::ref(latch), task,
+                    std::ref(thread_results_[i]));
         }
     }
 
@@ -132,10 +133,10 @@ class thread_group
                 {
                     std::cout << (static_cast<double>(duration.count()) / 1000) << "ms";
                 });
-        print_result_("operate rate", &thread_result::operate_count_,
-                [](const uint32_t actual_operate_count)
+        print_result_("failure rate", &thread_result::failure_count_,
+                [](const uint32_t failure_count)
                 {
-                    std::cout << (static_cast<double>(actual_operate_count) / FLAGS_operation_num * 100) << "%";
+                    std::cout << (static_cast<double>(failure_count) / FLAGS_operation_num * 100) << "%";
                 });
         std::cout << "\n";
     }
@@ -147,7 +148,10 @@ class thread_group
                 [&](const T value, const thread_result& result) { return value + result.*member_ptr; });
     }
 
-    uint32_t actual_operate_count() const { return sum_item_(&thread_result::operate_count_); }
+    uint32_t actual_operate_count() const
+    {
+        return threads_.size() * FLAGS_operation_num - sum_item_(&thread_result::failure_count_);
+    }
 
   private:
     template <typename Task>
@@ -157,7 +161,7 @@ class thread_group
         latch.wait();
         const auto start_ts = std::chrono::steady_clock::now();
         for (uint32_t i = 0; i < FLAGS_operation_num; ++i) {
-            result.operate_count_ += task();
+            result.failure_count_ += !task();
         }
         result.duration_ =
             std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start_ts);
@@ -178,12 +182,12 @@ class thread_group
         output_item(sum_item_(member_ptr) / threads_.size());
         std::cout << ",\tmin: ";
         output_item(thread_results_[0].*member_ptr);
+        std::cout << ",\t10%: ";
+        output_item(thread_results_[threads_.size() * 0.1].*member_ptr);
+        std::cout << ",\t50%: ";
+        output_item(thread_results_[threads_.size() * 0.5].*member_ptr);
         std::cout << ",\t90%: ";
         output_item(thread_results_[threads_.size() * 0.9].*member_ptr);
-        std::cout << ",\t95%: ";
-        output_item(thread_results_[threads_.size() * 0.95].*member_ptr);
-        std::cout << ",\t99%: ";
-        output_item(thread_results_[threads_.size() * 0.99].*member_ptr);
         std::cout << ",\tmax: ";
         output_item(thread_results_[threads_.size() - 1].*member_ptr);
     }
@@ -203,7 +207,8 @@ class benchmark : public testing::Test
     slontia::mutex_wrapper<object, SharedMutex> obj_;
 };
 
-using shared_mutexes = testing::Types<slontia::shared_mutex, slontia::shared_timed_mutex, std::shared_mutex, std::shared_timed_mutex>;
+using shared_mutexes = testing::Types<
+    slontia::shared_mutex, std::shared_mutex, slontia::shared_timed_mutex, std::shared_timed_mutex>;
 
 TYPED_TEST_SUITE(benchmark, shared_mutexes);
 
@@ -226,13 +231,15 @@ TYPED_TEST(benchmark, main)
 
     insert_threads("read", FLAGS_read_threads, [&] { return read_object(this->obj_); }, read_thread_groups);
     insert_threads("write", FLAGS_write_threads, [&] { return write_object(this->obj_); }, write_thread_groups);
-    insert_threads("try to read", FLAGS_try_read_threads, [&] { return try_read_object(this->obj_); }, read_thread_groups);
-    insert_threads("try to write", FLAGS_try_write_threads, [&] { return try_write_object(this->obj_); }, write_thread_groups);
+    insert_threads("try to read", FLAGS_try_read_threads, [&] { return try_read_object(this->obj_); },
+            read_thread_groups);
+    insert_threads("try to write", FLAGS_try_write_threads, [&] { return try_write_object(this->obj_); },
+            write_thread_groups);
     if constexpr (this->support_try_lock_for_) {
-        insert_threads("try to read for 1ms", FLAGS_try_read_1ms_threads, [&] { return try_read_object_for_1ms(this->obj_); },
-                read_thread_groups);
-        insert_threads("try to write for 1ms", FLAGS_try_write_1ms_threads, [&] { return try_write_object_for_1ms(this->obj_); },
-                write_thread_groups);
+        insert_threads("try to read for 1ms", FLAGS_try_read_1ms_threads,
+                [&] { return try_read_object_for_1ms(this->obj_); }, read_thread_groups);
+        insert_threads("try to write for 1ms", FLAGS_try_write_1ms_threads,
+                [&] { return try_write_object_for_1ms(this->obj_); }, write_thread_groups);
     }
 
     std::ranges::for_each(read_thread_groups, &thread_group::print_result);
