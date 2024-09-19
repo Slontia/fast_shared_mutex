@@ -67,14 +67,14 @@ class shared_mutex_base
         return false;
     }
 
-    uint32_t try_lock_internal_()
+    std::uint32_t try_lock_internal_()
     {
-        uint32_t working_num = 0;
+        std::uint32_t working_num = 0;
         working_num_.compare_exchange_strong(working_num, k_writing_state);
         return working_num;
     }
 
-    uint32_t try_lock_shared_internal_()
+    std::uint32_t try_lock_shared_internal_()
     {
         auto writing_num = writing_num_.load();
         if (writing_num == 0) {
@@ -90,12 +90,12 @@ class shared_mutex_base
     AtomicUInt32 working_num_{0};
 
   private:
-    static constexpr uint32_t k_writing_state = 0x1000'0000;
+    static constexpr std::uint32_t k_writing_state = 0x1000'0000;
 
     template <typename Fn>
     static void atomic_wait_until_zero(const Fn fn, AtomicUInt32& atom)
     {
-        uint32_t current_value = 0;
+        std::uint32_t current_value = 0;
         while ((current_value = fn()) > 0) {
             atom.wait(current_value);
         }
@@ -139,7 +139,7 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
     template <typename Rep, typename Period>
     static bool atomic_wait_timeout_(
         AtomicUInt32& atom,
-        const uint32_t expected_value,
+        const std::uint32_t expected_value,
         const std::chrono::duration<Rep, Period>& timeout_duration)
     {
         return atom.wait_for(expected_value, timeout_duration);
@@ -148,7 +148,7 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
     template <typename Clock, typename Duration>
     static bool atomic_wait_timeout_(
         AtomicUInt32& atom,
-        const uint32_t expected_value,
+        const std::uint32_t expected_value,
         const std::chrono::time_point<Clock, Duration>& timeout_time)
     {
         return atom.wait_until(expected_value, timeout_time);
@@ -157,7 +157,7 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
     static bool atomic_wait_until_zero_with_timeout_(
             const auto fn, AtomicUInt32& atom, const auto& timeout)
     {
-        uint32_t current_value = 0;
+        std::uint32_t current_value = 0;
         while ((current_value = fn()) > 0) {
             if (!atomic_wait_timeout_(atom, current_value, timeout)) {
                 return false;
@@ -186,7 +186,7 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
 
 }
 
-using shared_mutex = internal::shared_mutex_base<std::atomic<uint32_t>>;
+using shared_mutex = internal::shared_mutex_base<std::atomic<std::uint32_t>>;
 using shared_timed_mutex = internal::shared_timed_mutex_base<internal::timed_atomic_uint32_t>;
 
 }

@@ -7,7 +7,7 @@
 #include <gflags/gflags.h>
 
 
-TEST(TestLockWrapper, type_assert)
+TEST(test_lock_wrapper, type_assert)
 {
     slontia::mutex_wrapper<int, std::shared_timed_mutex> obj;
 
@@ -28,14 +28,14 @@ TEST(TestLockWrapper, type_assert)
     static_assert(std::is_same_v<const int&, decltype(*obj.try_lock_shared_until(std::chrono::system_clock::time_point{}))>);
 }
 
-TEST(TestLockWrapper, try_lock_succeed)
+TEST(test_lock_wrapper, try_lock_succeed)
 {
     slontia::mutex_wrapper<int, std::mutex> obj;
 
     ASSERT_TRUE(obj.try_lock());
 }
 
-TEST(TestLockWrapper, try_lock_failed)
+TEST(test_lock_wrapper, try_lock_failed)
 {
     slontia::mutex_wrapper<int, std::mutex> obj;
 
@@ -44,7 +44,7 @@ TEST(TestLockWrapper, try_lock_failed)
     ASSERT_FALSE(obj.try_lock());
 }
 
-TEST(TestLockWrapper, try_lock_shared_double_succeed)
+TEST(test_lock_wrapper, try_lock_shared_double_succeed)
 {
     slontia::mutex_wrapper<int, std::shared_mutex> obj;
 
@@ -53,7 +53,7 @@ TEST(TestLockWrapper, try_lock_shared_double_succeed)
     ASSERT_TRUE(obj.try_lock_shared());
 }
 
-TEST(TestLockWrapper, reset_locked_ptr)
+TEST(test_lock_wrapper, reset_locked_ptr)
 {
     slontia::mutex_wrapper<int, std::mutex> obj;
 
@@ -81,13 +81,13 @@ void static_assert_move()
     static_assert(requirement<mutex_wrapper::shared_locked_ptr, mutex_wrapper::shared_locked_ptr&&>::value);
 }
 
-TEST(TestLockWrapper, move_locked_ptr_static_assert)
+TEST(test_lock_wrapper, move_locked_ptr_static_assert)
 {
     static_assert_move<std::is_constructible>();
     static_assert_move<std::is_assignable>();
 }
 
-TEST(TestLockWrapper, move_construct_locked_ptr)
+TEST(test_lock_wrapper, move_construct_locked_ptr)
 {
     slontia::mutex_wrapper<int, std::mutex> obj;
 
@@ -97,7 +97,7 @@ TEST(TestLockWrapper, move_construct_locked_ptr)
     ASSERT_FALSE(obj.try_lock());
 }
 
-TEST(TestLockWrapper, move_construct_locked_ptr_mutable_to_const)
+TEST(test_lock_wrapper, move_construct_locked_ptr_mutable_to_const)
 {
     slontia::mutex_wrapper<int, std::mutex> obj;
 
@@ -106,7 +106,7 @@ TEST(TestLockWrapper, move_construct_locked_ptr_mutable_to_const)
     ASSERT_FALSE(obj.try_lock());
 }
 
-TEST(TestLockWrapper, move_assign_locked_ptr)
+TEST(test_lock_wrapper, move_assign_locked_ptr)
 {
     slontia::mutex_wrapper<int, std::mutex> obj;
     slontia::mutex_wrapper<int, std::mutex> obj_2;
@@ -119,7 +119,7 @@ TEST(TestLockWrapper, move_assign_locked_ptr)
     ASSERT_TRUE(obj_2.try_lock());
 }
 
-TEST(TestLockWrapper, move_assign_locked_ptr_mutable_to_const)
+TEST(test_lock_wrapper, move_assign_locked_ptr_mutable_to_const)
 {
     slontia::mutex_wrapper<int, std::mutex> obj;
     slontia::mutex_wrapper<int, std::mutex> obj_2;
@@ -132,7 +132,7 @@ TEST(TestLockWrapper, move_assign_locked_ptr_mutable_to_const)
     ASSERT_TRUE(obj_2.try_lock());
 }
 
-TEST(TestLockWrapper, unique_locked_ptr_not_copyable)
+TEST(test_lock_wrapper, unique_locked_ptr_not_copyable)
 {
     slontia::mutex_wrapper<int, std::shared_mutex> obj;
 
@@ -143,7 +143,7 @@ TEST(TestLockWrapper, unique_locked_ptr_not_copyable)
     static_assert(!std::is_copy_assignable_v<decltype(obj.lock_const())>);
 }
 
-TEST(TestLockWrapper, shared_locked_ptr_is_copyable)
+TEST(test_lock_wrapper, shared_locked_ptr_is_copyable)
 {
     slontia::mutex_wrapper<int, std::shared_mutex> obj;
 

@@ -26,15 +26,15 @@ struct futex_wait_operator<std::chrono::system_clock>
     static constexpr int value = FUTEX_WAIT | FUTEX_CLOCK_REALTIME;
 };
 
-class timed_atomic_uint32_t : public std::atomic_ref<uint32_t>
+class timed_atomic_uint32_t : public std::atomic_ref<std::uint32_t>
 {
   public:
-    timed_atomic_uint32_t() : std::atomic_ref<uint32_t>{value_} {}
+    timed_atomic_uint32_t() : std::atomic_ref<std::uint32_t>{value_} {}
 
-    timed_atomic_uint32_t(const uint32_t value)
-        : value_{std::move(value)}, std::atomic_ref<uint32_t>{value_} {}
+    timed_atomic_uint32_t(const std::uint32_t value)
+        : value_{std::move(value)}, std::atomic_ref<std::uint32_t>{value_} {}
 
-    void wait(const uint32_t value) { syscall(SYS_futex, &value_, FUTEX_WAIT, value, nullptr, nullptr, 0); }
+    void wait(const std::uint32_t value) { syscall(SYS_futex, &value_, FUTEX_WAIT, value, nullptr, nullptr, 0); }
 
     template <typename Rep, typename Period>
     bool wait_for(const std::uint32_t value, const std::chrono::duration<Rep, Period>& timeout_duration)
@@ -43,7 +43,7 @@ class timed_atomic_uint32_t : public std::atomic_ref<uint32_t>
     }
 
     template <typename Clock, class Duration>
-    bool wait_until(const uint32_t value, const std::chrono::time_point<Clock, Duration>& timeout_time)
+    bool wait_until(const std::uint32_t value, const std::chrono::time_point<Clock, Duration>& timeout_time)
     {
         const auto secs = std::chrono::time_point_cast<std::chrono::seconds>(timeout_time);
         const auto ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(timeout_time) -
@@ -57,7 +57,7 @@ class timed_atomic_uint32_t : public std::atomic_ref<uint32_t>
     void notify_all() { syscall(SYS_futex, &value_, FUTEX_WAKE, INT_MAX, nullptr, nullptr, 0); }
 
   private:
-    alignas(std::atomic_ref<uint32_t>::required_alignment) uint32_t value_;
+    alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t value_;
 };
 
 }
