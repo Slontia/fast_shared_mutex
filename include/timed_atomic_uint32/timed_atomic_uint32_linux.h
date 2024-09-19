@@ -2,7 +2,6 @@
 
 #include <linux/futex.h>
 #include <sys/syscall.h>
-#include <error.h>
 #include <string.h>
 
 #include <atomic>

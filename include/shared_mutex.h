@@ -1,4 +1,8 @@
-#include "timed_atomic.h"
+#if __linux__
+#include "timed_atomic_uint32/timed_atomic_uint32_linux.h"
+#else
+#error "Not supported platform"
+#endif
 
 #include <atomic>
 #include <chrono>
