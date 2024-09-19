@@ -20,4 +20,7 @@ foreach (TEST ${TESTS})
     add_executable(${TEST} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST}.cc)
     add_test(NAME ${TEST} COMMAND ${TEST})
     target_link_libraries(${TEST} gflags GTest::GTest GTest::Main)
+    if (WIN32)
+        target_link_libraries(${TEST} synchronization)  # for WaitOnAddress
+    endif()
 endforeach()

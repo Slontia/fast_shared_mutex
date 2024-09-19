@@ -1,5 +1,7 @@
 #if __linux__
 #include "timed_atomic_uint32/timed_atomic_uint32_linux.h"
+#elif _WIN32
+#include "timed_atomic_uint32/timed_atomic_uint32_windows.h"
 #else
 #error "Not supported platform"
 #endif
@@ -108,32 +110,25 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
     template <typename Rep, class Period>
     bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration)
     {
-        return try_lock_until(std::chrono::steady_clock::now() + timeout_duration);
+        return try_lock_timeout_(timeout_duration);
     }
 
     template <typename Clock, class Duration>
     bool try_lock_until(const std::chrono::time_point<Clock, Duration>& timeout_time)
     {
-        writing_num_.fetch_add(1);
-        if (!atomic_wait_until_zero_with_timeout(
-                    [this] { return try_lock_internal_(); }, working_num_, timeout_time)) {
-            shared_mutex_base<AtomicUInt32>::atomic_sub_and_notify_all_if_zero(writing_num_);
-            return false;
-        }
-        return true;
+        return try_lock_timeout_(timeout_time);
     }
 
     template <typename Rep, class Period>
     bool try_lock_shared_for(const std::chrono::duration<Rep, Period>& timeout_duration)
     {
-        return try_lock_shared_until(std::chrono::steady_clock::now() + timeout_duration);
+        return try_lock_shared_timeout_(timeout_duration);
     }
 
     template <typename Clock, class Duration>
     bool try_lock_shared_until(const std::chrono::time_point<Clock, Duration>& timeout_time)
     {
-        return atomic_wait_until_zero_with_timeout(
-                [this] { return try_lock_shared_internal_(); }, writing_num_, timeout_time);
+        return try_lock_shared_timeout_(timeout_time);
     }
 
   private:
@@ -142,17 +137,51 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
     using shared_mutex_base<AtomicUInt32>::writing_num_;
     using shared_mutex_base<AtomicUInt32>::working_num_;
 
-    template <typename Fn, typename Clock, class Duration>
-    static bool atomic_wait_until_zero_with_timeout(
-            const Fn fn, AtomicUInt32& atom, const std::chrono::time_point<Clock, Duration>& timeout_time)
+    template <typename Rep, typename Period>
+    static bool atomic_wait_timeout_(
+        AtomicUInt32& atom, 
+        const uint32_t expected_value, 
+        const std::chrono::duration<Rep, Period>& timeout_duration)
+    {
+        return atom.wait_for(expected_value, timeout_duration);
+    }
+
+    template <typename Clock, typename Duration>
+    static bool atomic_wait_timeout_(
+        AtomicUInt32& atom, 
+        const uint32_t expected_value, 
+        const std::chrono::time_point<Clock, Duration>& timeout_time)
+    {
+        return atom.wait_until(expected_value, timeout_time);
+    }
+
+    static bool atomic_wait_until_zero_with_timeout_(
+            const auto fn, AtomicUInt32& atom, const auto& timeout)
     {
         uint32_t current_value = 0;
         while ((current_value = fn()) > 0) {
-            if (!atom.wait_until(current_value, timeout_time)) {
+            if (!atomic_wait_timeout_(atom, current_value, timeout)) {
                 return false;
             }
         }
         return true;
+    }
+
+    bool try_lock_timeout_(const auto& timeout)
+    {
+        writing_num_.fetch_add(1);
+        if (!atomic_wait_until_zero_with_timeout_(
+                    [this] { return try_lock_internal_(); }, working_num_, timeout)) {
+            shared_mutex_base<AtomicUInt32>::atomic_sub_and_notify_all_if_zero(writing_num_);
+            return false;
+        }
+        return true;
+    }
+
+    bool try_lock_shared_timeout_(const auto& timeout)
+    {
+        return atomic_wait_until_zero_with_timeout_(
+                [this] { return try_lock_shared_internal_(); }, writing_num_, timeout);
     }
 };
 
