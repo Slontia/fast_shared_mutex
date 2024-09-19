@@ -100,7 +100,6 @@ class shared_mutex_base
             atom.wait(current_value);
         }
     }
-
 };
 
 template <typename AtomicUInt32>
@@ -139,8 +138,8 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
 
     template <typename Rep, typename Period>
     static bool atomic_wait_timeout_(
-        AtomicUInt32& atom, 
-        const uint32_t expected_value, 
+        AtomicUInt32& atom,
+        const uint32_t expected_value,
         const std::chrono::duration<Rep, Period>& timeout_duration)
     {
         return atom.wait_for(expected_value, timeout_duration);
@@ -148,8 +147,8 @@ class shared_timed_mutex_base : public shared_mutex_base<AtomicUInt32>
 
     template <typename Clock, typename Duration>
     static bool atomic_wait_timeout_(
-        AtomicUInt32& atom, 
-        const uint32_t expected_value, 
+        AtomicUInt32& atom,
+        const uint32_t expected_value,
         const std::chrono::time_point<Clock, Duration>& timeout_time)
     {
         return atom.wait_until(expected_value, timeout_time);

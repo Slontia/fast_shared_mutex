@@ -10,13 +10,13 @@
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 
-DEFINE_uint32(read_threads, 10, "Number of threads to read");
-DEFINE_uint32(try_read_threads, 10, "Number of threads to try to read");
-DEFINE_uint32(try_read_1ms_threads, 10, "Number of threads to try to read for 1 millisecond");
-DEFINE_uint32(write_threads, 2, "Number of threads to write");
-DEFINE_uint32(try_write_threads, 2, "Number of threads to try to write");
-DEFINE_uint32(try_write_1ms_threads, 2, "Number of threads to try to write for 1 millisecond");
-DEFINE_uint32(operation_num, 10000, "Number of operations for each thread");
+DEFINE_uint32(read_threads, 100, "Number of threads to read");
+DEFINE_uint32(try_read_threads, 100, "Number of threads to try to read");
+DEFINE_uint32(try_read_1ms_threads, 100, "Number of threads to try to read for 1 millisecond");
+DEFINE_uint32(write_threads, 1, "Number of threads to write");
+DEFINE_uint32(try_write_threads, 1, "Number of threads to try to write");
+DEFINE_uint32(try_write_1ms_threads, 1, "Number of threads to try to write for 1 millisecond");
+DEFINE_uint32(operation_num, 100000, "Number of operations for each thread");
 DEFINE_string(mutex, "slontia",
         "The kind of shared mutex to test, can be 'std', 'std_timed', 'slontia', 'slontia_timed'");
 
