@@ -194,14 +194,24 @@ class thread_group
 };
 
 template <typename SharedMutex>
-void test_main()
+class benchmark : public testing::Test
 {
-    constexpr bool support_try_lock_for =
+  protected:
+    static constexpr bool support_try_lock_for_ =
         requires(SharedMutex mutex) { mutex.try_lock_for(std::chrono::milliseconds(1)); };
-    slontia::mutex_wrapper<object, SharedMutex> obj;
+
+    slontia::mutex_wrapper<object, SharedMutex> obj_;
+};
+
+using shared_mutexes = testing::Types<slontia::shared_mutex, slontia::shared_timed_mutex, std::shared_mutex, std::shared_timed_mutex>;
+
+TYPED_TEST_SUITE(benchmark, shared_mutexes);
+
+TYPED_TEST(benchmark, main)
+{
     std::latch latch{
         FLAGS_read_threads + FLAGS_try_read_threads + FLAGS_write_threads + FLAGS_try_write_threads +
-            (support_try_lock_for ? (FLAGS_try_read_1ms_threads + FLAGS_try_write_1ms_threads) : 0)};
+            (this->support_try_lock_for_ ? (FLAGS_try_read_1ms_threads + FLAGS_try_write_1ms_threads) : 0)};
 
     std::vector<thread_group> read_thread_groups;
     std::vector<thread_group> write_thread_groups;
@@ -214,38 +224,23 @@ void test_main()
             }
         };
 
-    insert_threads("read", FLAGS_read_threads, [&] { return read_object(obj); }, read_thread_groups);
-    insert_threads("write", FLAGS_write_threads, [&] { return write_object(obj); }, write_thread_groups);
-    insert_threads("try to read", FLAGS_try_read_threads, [&] { return try_read_object(obj); }, read_thread_groups);
-    insert_threads("try to write", FLAGS_try_write_threads, [&] { return try_write_object(obj); }, write_thread_groups);
-    if constexpr (support_try_lock_for) {
-        insert_threads("try to read for 1ms", FLAGS_try_read_1ms_threads, [&] { return try_read_object_for_1ms(obj); },
+    insert_threads("read", FLAGS_read_threads, [&] { return read_object(this->obj_); }, read_thread_groups);
+    insert_threads("write", FLAGS_write_threads, [&] { return write_object(this->obj_); }, write_thread_groups);
+    insert_threads("try to read", FLAGS_try_read_threads, [&] { return try_read_object(this->obj_); }, read_thread_groups);
+    insert_threads("try to write", FLAGS_try_write_threads, [&] { return try_write_object(this->obj_); }, write_thread_groups);
+    if constexpr (this->support_try_lock_for_) {
+        insert_threads("try to read for 1ms", FLAGS_try_read_1ms_threads, [&] { return try_read_object_for_1ms(this->obj_); },
                 read_thread_groups);
-        insert_threads("try to write for 1ms", FLAGS_try_write_1ms_threads, [&] { return try_write_object_for_1ms(obj); },
+        insert_threads("try to write for 1ms", FLAGS_try_write_1ms_threads, [&] { return try_write_object_for_1ms(this->obj_); },
                 write_thread_groups);
     }
 
-    std::cout << "## " << typeid(SharedMutex).name() << "\n";
     std::ranges::for_each(read_thread_groups, &thread_group::print_result);
     std::ranges::for_each(write_thread_groups, &thread_group::print_result);
     std::cout << "\n";
 
-    EXPECT_EQ(obj.lock()->read(),
+    EXPECT_EQ(this->obj_.lock()->read(),
             std::accumulate(write_thread_groups.begin(), write_thread_groups.end(), 0u,
                 [](uint32_t sum, const thread_group& group) { return sum + group.actual_operate_count(); }));
 }
 
-TEST(TestSharedMutex, benchmark)
-{
-    test_main<slontia::shared_mutex>();
-    test_main<slontia::shared_timed_mutex>();
-    test_main<std::shared_mutex>();
-    test_main<std::shared_timed_mutex>();
-}
-
-int main(int argc, char** argv)
-{
-    testing::InitGoogleTest(&argc, argv);
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
-    return RUN_ALL_TESTS();
-}

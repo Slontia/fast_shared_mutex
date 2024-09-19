@@ -75,6 +75,7 @@ class mutex_wrapper : private mutex_wrapper_base
     using shared_locked_ptr = locked_ptr_template<lock_type::shared_const>;
 
     using element_type = T;
+    using mutex_type = Mutex;
 
     template <typename ...Args>
     explicit mutex_wrapper(Args&& ...args) : obj_{std::forward<Args>(args)...}

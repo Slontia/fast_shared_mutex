@@ -157,9 +157,3 @@ TEST(TestLockWrapper, shared_locked_ptr_is_copyable)
     ASSERT_TRUE(obj.try_lock());
 }
 
-int main(int argc, char** argv)
-{
-  testing::InitGoogleTest(&argc, argv);
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-  return RUN_ALL_TESTS();
-}

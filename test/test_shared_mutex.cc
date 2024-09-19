@@ -1,4 +1,4 @@
-#include "include/shared_mutex.h"
+#include "shared_mutex.h"
 
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
@@ -192,53 +192,53 @@ using test_shared_mutex_tuple = convert_tuple_to_test_types_t<merge_tuples_t<
     >>;
 
 template <typename SharedMutex>
-struct TestSharedMutex : protected SharedMutex, public testing::Test
+struct test_shared_mutex : protected SharedMutex, public testing::Test
 {
 };
 
-TYPED_TEST_SUITE(TestSharedMutex, test_shared_mutex_tuple);
+TYPED_TEST_SUITE(test_shared_mutex, test_shared_mutex_tuple);
 
 // =======================================================
 
-TYPED_TEST(TestSharedMutex, shared_lock_for_several_times)
+TYPED_TEST(test_shared_mutex, shared_lock_for_several_times)
 {
     this->lock_shared();
     ASSERT_TRUE(this->try_lock_shared());
 }
 
-TYPED_TEST(TestSharedMutex, cannot_shared_lock_when_unique_locked)
+TYPED_TEST(test_shared_mutex, cannot_shared_lock_when_unique_locked)
 {
     this->lock();
     ASSERT_FALSE(this->try_lock_shared());
 }
 
-TYPED_TEST(TestSharedMutex, cannot_unique_lock_when_unique_locked)
+TYPED_TEST(test_shared_mutex, cannot_unique_lock_when_unique_locked)
 {
     this->lock();
     ASSERT_FALSE(this->try_lock());
 }
 
-TYPED_TEST(TestSharedMutex, cannot_unique_lock_when_shared_locked)
+TYPED_TEST(test_shared_mutex, cannot_unique_lock_when_shared_locked)
 {
     this->lock();
     ASSERT_FALSE(this->try_lock_shared());
 }
 
-TYPED_TEST(TestSharedMutex, cannot_shared_lock_when_unique_unlocked)
+TYPED_TEST(test_shared_mutex, cannot_shared_lock_when_unique_unlocked)
 {
     this->lock();
     this->unlock();
     ASSERT_TRUE(this->try_lock_shared());
 }
 
-TYPED_TEST(TestSharedMutex, cannot_unique_lock_until_unique_unlocked)
+TYPED_TEST(test_shared_mutex, cannot_unique_lock_until_unique_unlocked)
 {
     this->lock();
     this->unlock();
     ASSERT_TRUE(this->try_lock());
 }
 
-TYPED_TEST(TestSharedMutex, cannot_unique_lock_until_all_shared_unlocked)
+TYPED_TEST(test_shared_mutex, cannot_unique_lock_until_all_shared_unlocked)
 {
     this->lock_shared();
     this->lock_shared();
@@ -248,9 +248,3 @@ TYPED_TEST(TestSharedMutex, cannot_unique_lock_until_all_shared_unlocked)
     EXPECT_TRUE(this->try_lock());
 }
 
-int main(int argc, char** argv)
-{
-    testing::InitGoogleTest(&argc, argv);
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
-    return RUN_ALL_TESTS();
-}
