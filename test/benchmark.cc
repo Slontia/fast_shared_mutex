@@ -40,52 +40,43 @@ class object
     uint32_t b_{0};
 };
 
+static bool operate_object(const auto lock_fn, const auto operation)
+{
+    auto locked_obj = lock_fn();
+    if (locked_obj) {
+        ((*locked_obj).*operation)();
+    }
+    return locked_obj;
+}
+
 static bool read_object(auto& obj)
 {
-    obj.lock_shared()->read();
-    return true;
+    return operate_object([&] { return obj.lock_shared(); }, &object::read);
 }
 
 static bool try_read_object(auto& obj)
 {
-    auto locked_obj = obj.try_lock_shared();
-    if (locked_obj) {
-        locked_obj->read();
-    }
-    return locked_obj;
+    return operate_object([&] { return obj.try_lock_shared(); }, &object::read);
 }
 
 static bool try_read_object_for_1ms(auto& obj)
 {
-    auto locked_obj = obj.try_lock_shared_for(std::chrono::milliseconds(1));
-    if (locked_obj) {
-        locked_obj->read();
-    }
-    return locked_obj;
+    return operate_object([&] { return obj.try_lock_shared_for(std::chrono::milliseconds(1)); }, &object::read);
 }
 
 static bool write_object(auto& obj)
 {
-    obj.lock()->write();
-    return true;
+    return operate_object([&] { return obj.lock(); }, &object::write);
 }
 
 static bool try_write_object(auto& obj)
 {
-    auto locked_obj = obj.try_lock();
-    if (locked_obj) {
-        locked_obj->write();
-    }
-    return locked_obj;
+    return operate_object([&] { return obj.try_lock(); }, &object::write);
 }
 
 static bool try_write_object_for_1ms(auto& obj)
 {
-    auto locked_obj = obj.try_lock_for(std::chrono::milliseconds(1));
-    if (locked_obj) {
-        locked_obj->write();
-    }
-    return locked_obj;
+    return operate_object([&] { return obj.try_lock_for(std::chrono::milliseconds(1)); }, &object::write);
 }
 
 template <typename T>
