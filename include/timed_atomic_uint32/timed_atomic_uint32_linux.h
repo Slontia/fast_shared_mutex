@@ -34,16 +34,25 @@ class timed_atomic_uint32_t : public std::atomic_ref<std::uint32_t>
     timed_atomic_uint32_t(const std::uint32_t value)
         : value_{std::move(value)}, std::atomic_ref<std::uint32_t>{value_} {}
 
-    void wait(const std::uint32_t value) { syscall(SYS_futex, &value_, FUTEX_WAIT, value, nullptr, nullptr, 0); }
+    void wait(const std::uint32_t value, const std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
+        syscall(SYS_futex, &value_, FUTEX_WAIT, value, nullptr, nullptr, 0);
+    }
 
     template <typename Rep, typename Period>
-    bool wait_for(const std::uint32_t value, const std::chrono::duration<Rep, Period>& timeout_duration)
+    bool wait_for(
+            const std::uint32_t value,
+            const std::chrono::duration<Rep, Period>& timeout_duration,
+            const std::memory_order order = std::memory_order_seq_cst) noexcept
     {
         return wait_until(value, std::chrono::steady_clock::now() + timeout_duration);
     }
 
     template <typename Clock, class Duration>
-    bool wait_until(const std::uint32_t value, const std::chrono::time_point<Clock, Duration>& timeout_time)
+    bool wait_until(
+            const std::uint32_t value,
+            const std::chrono::time_point<Clock, Duration>& timeout_time,
+            const std::memory_order order = std::memory_order_seq_cst) noexcept
     {
         const auto secs = std::chrono::time_point_cast<std::chrono::seconds>(timeout_time);
         const auto ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(timeout_time) -
@@ -52,9 +61,9 @@ class timed_atomic_uint32_t : public std::atomic_ref<std::uint32_t>
         return syscall(SYS_futex, &value_, futex_wait_operator<Clock>::value, value, timeout, nullptr, 0) == 0;
     }
 
-    void notify_one() { syscall(SYS_futex, &value_, FUTEX_WAKE, 1, nullptr, nullptr, 0); }
+    void notify_one() noexcept { syscall(SYS_futex, &value_, FUTEX_WAKE, 1, nullptr, nullptr, 0); }
 
-    void notify_all() { syscall(SYS_futex, &value_, FUTEX_WAKE, INT_MAX, nullptr, nullptr, 0); }
+    void notify_all() noexcept { syscall(SYS_futex, &value_, FUTEX_WAKE, INT_MAX, nullptr, nullptr, 0); }
 
   private:
     alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t value_;

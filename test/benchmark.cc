@@ -242,3 +242,10 @@ TYPED_TEST(benchmark, main)
                 [](uint32_t sum, const thread_group& group) { return sum + group.actual_operate_count(); }));
 }
 
+int main(int argc, char** argv)
+{
+  testing::InitGoogleTest(&argc, argv);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  return RUN_ALL_TESTS();
+}
+
