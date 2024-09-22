@@ -83,22 +83,6 @@ static bool try_write_object_for_1ms(auto& obj)
     return operate_object([&] { return obj.try_lock_for(std::chrono::milliseconds(1)); }, &object::write);
 }
 
-template <typename T>
-class dynamic_array
-{
-  public:
-    dynamic_array() = default;
-
-    template <typename ...Args>
-    dynamic_array(const size_t size, const Args& ...args)
-    {
-    }
-
-  private:
-    std::unique_ptr<std::aligned_storage_t<sizeof(T), alignof(T)>[]> buffer_;
-    size_t size_{0};
-};
-
 class thread_group
 {
     struct thread_result
