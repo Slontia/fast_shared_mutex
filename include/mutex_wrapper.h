@@ -1,3 +1,9 @@
+// Copyright (c) 2024, Chang Liu <github.com/slontia>. All rights reserved.
+//
+// This source code is licensed under MIT (found in the LICENSE file).
+
+#pragma once
+
 #include <chrono>
 #include <utility>
 

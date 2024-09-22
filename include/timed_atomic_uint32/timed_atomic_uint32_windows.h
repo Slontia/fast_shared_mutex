@@ -1,3 +1,7 @@
+// Copyright (c) 2024, Chang Liu <github.com/slontia>. All rights reserved.
+//
+// This source code is licensed under MIT (found in the LICENSE file).
+
 #pragma once
 
 #include <windows.h>
@@ -28,6 +32,9 @@ class timed_atomic_uint32_t : public std::atomic_ref<std::uint32_t>
             const std::chrono::duration<Rep, Period>& timeout_duration,
             const std::memory_order order = std::memory_order_seq_cst) noexcept
     {
+        if (timeout_duration <= decltype(timeout_duration)::zero()) [[unlikely]] {
+            return *this == value;
+        }
         return WaitOnAddress(&value_, &value, sizeof(std::uint32_t), 
             std::chrono::duration_cast<std::chrono::milliseconds>(timeout_duration).count());
     }
@@ -38,11 +45,7 @@ class timed_atomic_uint32_t : public std::atomic_ref<std::uint32_t>
             const std::chrono::time_point<Clock, Duration>& timeout_time,
             const std::memory_order order = std::memory_order_seq_cst) noexcept
     {
-        const auto timeout_duration = timeout_time - Clock::now();
-        if (timeout_duration > decltype(timeout_duration)::zero()) {
-            return wait_for(value, timeout_duration);
-        }
-        return *this == value;
+        return wait_for(value, timeout_time - Clock::now());
     }
 
     void notify_one() noexcept { WakeByAddressSingle(&value_); }

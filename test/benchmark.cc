@@ -1,3 +1,7 @@
+// Copyright (c) 2024, Chang Liu <github.com/slontia>. All rights reserved.
+//
+// This source code is licensed under MIT (found in the LICENSE file).
+
 #include "shared_mutex.h"
 #include "mutex_wrapper.h"
 
