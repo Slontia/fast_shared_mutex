@@ -14,7 +14,7 @@ find_package(GTest REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-set(TESTS test_mutex_wrapper test_shared_mutex benchmark)
+set(TESTS test_mutex_protect_wrapper test_shared_mutex benchmark)
 
 foreach (TEST ${TESTS})
     add_executable(${TEST} ${CMAKE_CURRENT_SOURCE_DIR}/${TEST}.cc)

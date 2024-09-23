@@ -3,7 +3,7 @@
 // This source code is licensed under MIT (found in the LICENSE file).
 
 #include "shared_mutex.h"
-#include "mutex_wrapper.h"
+#include "mutex_protect_wrapper.h"
 
 #include <algorithm>
 #include <numeric>
@@ -183,7 +183,7 @@ class benchmark : public testing::Test
     static constexpr bool support_try_lock_for_ =
         requires(SharedMutex mutex) { mutex.try_lock_for(std::chrono::milliseconds(1)); };
 
-    slontia::mutex_wrapper<object, SharedMutex> obj_;
+    slontia::mutex_protect_wrapper<object, SharedMutex> obj_;
 };
 
 using shared_mutexes = testing::Types<

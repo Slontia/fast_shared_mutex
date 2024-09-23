@@ -9,10 +9,10 @@
 
 namespace slontia {
 
-class mutex_wrapper_base
+class mutex_protect_wrapper_base
 {
     template <typename T, typename Mutex>
-    friend class mutex_wrapper;
+    friend class mutex_protect_wrapper;
 
   public:
     enum class lock_type { unique_mutable, unique_const, shared_const };
@@ -21,11 +21,11 @@ class mutex_wrapper_base
     template <lock_type k_type>
     class lock_helper;
 
-    mutex_wrapper_base() = default;
+    mutex_protect_wrapper_base() = default;
 };
 
 template <>
-struct mutex_wrapper_base::lock_helper<mutex_wrapper_base::lock_type::shared_const>
+struct mutex_protect_wrapper_base::lock_helper<mutex_protect_wrapper_base::lock_type::shared_const>
 {
     static void lock(auto& mutex) { mutex.lock_shared(); }
 
@@ -46,9 +46,9 @@ struct mutex_wrapper_base::lock_helper<mutex_wrapper_base::lock_type::shared_con
     static void unlock(auto& mutex) { mutex.unlock_shared(); }
 };
 
-template <mutex_wrapper_base::lock_type k_type>
-requires (k_type == mutex_wrapper_base::lock_type::unique_mutable || k_type == mutex_wrapper_base::lock_type::unique_const)
-struct mutex_wrapper_base::lock_helper<k_type>
+template <mutex_protect_wrapper_base::lock_type k_type>
+requires (k_type == mutex_protect_wrapper_base::lock_type::unique_mutable || k_type == mutex_protect_wrapper_base::lock_type::unique_const)
+struct mutex_protect_wrapper_base::lock_helper<k_type>
 {
     static void lock(auto& mutex) { mutex.lock(); }
 
@@ -69,13 +69,13 @@ struct mutex_wrapper_base::lock_helper<k_type>
     static void unlock(auto& mutex) { mutex.unlock(); }
 };
 
-// The `mutex_wrapper` class template wraps an object and a mutex. If one threads aims to visit the wrapped object, it
-// must retrieve an locked pointer first, which indicates the threads has held the mutex in exclusive or shared mode.
-// The ownership of the mutex will remain held until the locked pointer is destructed. This mechanism guarantees thread
-// safety for concurrently accessing the object.
-// `mutex_wrapper` is neither copyable nor movable.
+// The `mutex_protect_wrapper` class template wraps an object and a mutex. If one threads aims to visit the wrapped
+// object, it must retrieve an locked pointer first, which indicates the threads has held the mutex in exclusive or
+// shared mode. The ownership of the mutex will remain held until the locked pointer is destructed. This mechanism
+// guarantees thread safety for concurrently accessing the object.
+// `mutex_protect_wrapper` is neither copyable nor movable.
 template <typename T, typename Mutex>
-class mutex_wrapper : private mutex_wrapper_base
+class mutex_protect_wrapper : private mutex_protect_wrapper_base
 {
     template <lock_type k_type>
     class locked_ptr_template;
@@ -94,16 +94,16 @@ class mutex_wrapper : private mutex_wrapper_base
 
     using mutex_type = Mutex;
 
-    // Constructs a `mutex_wrapper` object. The object of type `T` contains in `*this` is initialized from the arguments
-    // `std::forward<Args>(args)...`. The mutex of type `Mutex` is default-initialized.
+    // Constructs a `mutex_protect_wrapper` object. The object of type `T` contains in `*this` is initialized from the
+    // arguments `std::forward<Args>(args)...`. The mutex of type `Mutex` is default-initialized.
     template <typename ...Args>
-    explicit mutex_wrapper(Args&& ...args) : obj_{std::forward<Args>(args)...} {}
+    explicit mutex_protect_wrapper(Args&& ...args) : obj_{std::forward<Args>(args)...} {}
 
-    mutex_wrapper(const mutex_wrapper&) = delete;
-    mutex_wrapper(mutex_wrapper&&) = delete;
+    mutex_protect_wrapper(const mutex_protect_wrapper&) = delete;
+    mutex_protect_wrapper(mutex_protect_wrapper&&) = delete;
 
-    mutex_wrapper& operator=(const mutex_wrapper&) = delete;
-    mutex_wrapper& operator=(mutex_wrapper&&) = delete;
+    mutex_protect_wrapper& operator=(const mutex_protect_wrapper&) = delete;
+    mutex_protect_wrapper& operator=(mutex_protect_wrapper&&) = delete;
 
     // Locks the mutex in exclusive mode and returns a `locked_ptr` which points to the object. The returned
     // `locked_ptr` is never null.
@@ -207,13 +207,13 @@ class mutex_wrapper : private mutex_wrapper_base
 // `shared_const`. `locked_ptr_template` does not hold any ownerships of the pointed object.
 // `locked_ptr_template` is movable, and only copyable when it locks the mutex in shared mode.
 template <typename T, typename Mutex>
-template <mutex_wrapper_base::lock_type k_type>
-class mutex_wrapper<T, Mutex>::locked_ptr_template
+template <mutex_protect_wrapper_base::lock_type k_type>
+class mutex_protect_wrapper<T, Mutex>::locked_ptr_template
 {
-    template <mutex_wrapper_base::lock_type>
+    template <mutex_protect_wrapper_base::lock_type>
     friend class locked_ptr_template;
 
-    friend class mutex_wrapper;
+    friend class mutex_protect_wrapper;
 
   public:
     // Constructs a null locked pointer, which does not hold any ownerships of the mutex.
@@ -227,10 +227,10 @@ class mutex_wrapper<T, Mutex>::locked_ptr_template
     // `locked_ptr_template` points to the same object as `o`.
     locked_ptr_template(const locked_ptr_template& o)
         requires (k_type == lock_type::shared_const)
-        : locked_ptr_template{o.mutex_wrapper_}
+        : locked_ptr_template{o.mutex_protect_wrapper_}
     {
-        if (mutex_wrapper_) {
-            mutex_wrapper_->mutex_.lock_shared();
+        if (mutex_protect_wrapper_) {
+            mutex_protect_wrapper_->mutex_.lock_shared();
         }
     }
 
@@ -240,24 +240,24 @@ class mutex_wrapper<T, Mutex>::locked_ptr_template
     locked_ptr_template(locked_ptr_template&& o) noexcept { swap(o); }
     locked_ptr_template(locked_ptr_template<lock_type::unique_mutable>&& o) noexcept
         requires (k_type == lock_type::unique_const)
-        : locked_ptr_template{o.mutex_wrapper_}
+        : locked_ptr_template{o.mutex_protect_wrapper_}
     {
-        o.mutex_wrapper_ = nullptr;
+        o.mutex_protect_wrapper_ = nullptr;
     }
 
     // If `*this` points to an object, it releases the mutex ownership.
     ~locked_ptr_template()
     {
-        if (mutex_wrapper_) {
-            lock_helper<k_type>::unlock(mutex_wrapper_->mutex_);
+        if (mutex_protect_wrapper_) {
+            lock_helper<k_type>::unlock(mutex_protect_wrapper_->mutex_);
         }
     }
 
     // Returns true if `*this` stores a non-null pointer, false otherwise.
-    operator bool() const noexcept { return mutex_wrapper_ != nullptr; }
+    operator bool() const noexcept { return mutex_protect_wrapper_ != nullptr; }
 
     // Returns true if `*this` stores a null pointer, false otherwise.
-    bool operator==(std::nullptr_t) const noexcept { return mutex_wrapper_ == nullptr; }
+    bool operator==(std::nullptr_t) const noexcept { return mutex_protect_wrapper_ == nullptr; }
 
     // Copy assignment operator is disabled for a `locked_ptr_template` holding the mutex in exclusive mode.
     locked_ptr_template& operator=(const locked_ptr_template&) = delete;
@@ -279,25 +279,25 @@ class mutex_wrapper<T, Mutex>::locked_ptr_template
     }
 
     // Dereferences the stored pointer. The behavior is undefined if the stored pointer is null.
-    auto& operator*() const noexcept { return mutex_wrapper_->obj_; }
-    auto* operator->() const noexcept { return mutex_wrapper_ ? &mutex_wrapper_->obj_ : nullptr; }
+    auto& operator*() const noexcept { return mutex_protect_wrapper_->obj_; }
+    auto* operator->() const noexcept { return mutex_protect_wrapper_ ? &mutex_protect_wrapper_->obj_ : nullptr; }
 
     // Releases the previous mutex ownership held by `*this` and set the object pointer to a null pointer.
     void reset() { locked_ptr_template{}.swap(*this); }
 
     // Exchanges the mutex ownership and stored pointer values of `*this` and `r`.
-    void swap(locked_ptr_template& o) noexcept { std::swap(mutex_wrapper_, o.mutex_wrapper_); }
+    void swap(locked_ptr_template& o) noexcept { std::swap(mutex_protect_wrapper_, o.mutex_protect_wrapper_); }
 
   private:
-    // Constructs with a `mutex_wrapper`. After the construction, `*this` will lock the mutex and stores a pointer to
-    // the object owned by `wrapper`.
-    explicit locked_ptr_template(mutex_wrapper* const wrapper) noexcept : mutex_wrapper_{wrapper} {}
-    explicit locked_ptr_template(const mutex_wrapper* const wrapper) noexcept
+    // Constructs with a `mutex_protect_wrapper`. After the construction, `*this` will lock the mutex and stores a
+    // pointer to the object owned by `wrapper`.
+    explicit locked_ptr_template(mutex_protect_wrapper* const wrapper) noexcept : mutex_protect_wrapper_{wrapper} {}
+    explicit locked_ptr_template(const mutex_protect_wrapper* const wrapper) noexcept
         requires (k_type == lock_type::unique_const || k_type == lock_type::shared_const)
-        : mutex_wrapper_{wrapper} {}
+        : mutex_protect_wrapper_{wrapper} {}
 
-    std::conditional_t<k_type == lock_type::unique_mutable, mutex_wrapper, const mutex_wrapper>*
-        mutex_wrapper_{nullptr};
+    std::conditional_t<k_type == lock_type::unique_mutable, mutex_protect_wrapper, const mutex_protect_wrapper>*
+        mutex_protect_wrapper_{nullptr};
 };
 
 }
