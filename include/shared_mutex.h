@@ -27,7 +27,8 @@ namespace internal {
 // `slontia::internal::shared_mutex` is similar to `std::shared_mutex`, but has the following characteristics:
 // - Concurrent acquisition for shared ownerships can be efficient;
 // - Locking and unlocking in different threads is allowed;
-// - Acquisition for exclusive ownership has higher priority than shared ownership.
+// - Acquisition for exclusive ownership has higher priority than shared ownership;
+// - Requirements of `StandardLayoutType` are not satisfied.
 template <typename AtomicUInt32>
 class shared_mutex
 {
@@ -180,7 +181,8 @@ class shared_mutex
 // characteristics:
 // - Concurrent acquisition for shared ownerships can be efficient;
 // - Locking and unlocking in different threads is allowed;
-// - Acquisition for exclusive ownership has higher priority than shared ownership.
+// - Acquisition for exclusive ownership has higher priority than shared ownership;
+// - Requirements of `StandardLayoutType` are not satisfied.
 template <typename AtomicUInt32>
 class shared_timed_mutex : public shared_mutex<AtomicUInt32>
 {
