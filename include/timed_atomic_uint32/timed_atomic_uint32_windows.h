@@ -32,7 +32,7 @@ class timed_atomic_uint32_t : public std::atomic_ref<std::uint32_t>
             const std::chrono::duration<Rep, Period>& timeout_duration,
             const std::memory_order order = std::memory_order_seq_cst) noexcept
     {
-        if (timeout_duration <= decltype(timeout_duration)::zero()) [[unlikely]] {
+        if (timeout_duration <= timeout_duration.zero()) [[unlikely]] {
             return *this == value;
         }
         return WaitOnAddress(&value_, &value, sizeof(std::uint32_t), 
