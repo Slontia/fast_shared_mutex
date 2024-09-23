@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 
+#include <thread>
 #include <shared_mutex>
 
 enum class lock_mode { k_lock, k_try_lock, k_try_lock_for, k_try_lock_until };
@@ -93,7 +94,7 @@ void lock_func<lock_mode::k_lock>::lock_shared(Mutex& mutex)
     mutex.lock_shared();
 }
 
-// The class template shared_mutex_wrapper behaves as a shared mutex.
+// The `shared_mutex_wrapper` class template behaves as a common shared mutex.
 template <typename SharedMutex, lock_mode LockMode, lock_mode TryLockMode>
 class shared_mutex_wrapper
 {
@@ -114,17 +115,6 @@ class shared_mutex_wrapper
     SharedMutex mutex_;
 };
 
-// ================================
-
-template <typename ...Types>
-struct tuple;
-
-template <typename T>
-struct is_tuple { static constexpr bool value = false; };
-
-template <typename ...Types>
-struct is_tuple<tuple<Types...>> { static constexpr bool value = true; };
-
 template <typename ...Tuples>
 struct merge_tuples;
 
@@ -132,9 +122,9 @@ template <typename ...Tuple>
 using merge_tuples_t = merge_tuples<Tuple...>::type;
 
 template <typename ...Types1, typename ...Types2, typename ...Tuples>
-struct merge_tuples<tuple<Types1...>, tuple<Types2...>, Tuples...>
+struct merge_tuples<testing::Types<Types1...>, testing::Types<Types2...>, Tuples...>
 {
-    using type = merge_tuples<tuple<Types1..., Types2...>, Tuples...>::type;
+    using type = merge_tuples<testing::Types<Types1..., Types2...>, Tuples...>::type;
 };
 
 template <typename Tuple>
@@ -150,59 +140,33 @@ template <typename SharedMutexTuple, typename LockModeSequence, typename TryLock
 using shared_mutex_tuple_t = shared_mutex_tuple<SharedMutexTuple, LockModeSequence, TryLockModeSequence>::type;
 
 template <typename SharedMutex, lock_mode LockMode, lock_mode ...TryLockModes>
-requires (!is_tuple<SharedMutex>::value)
 struct shared_mutex_tuple<SharedMutex, lock_mode_sequence<LockMode>, lock_mode_sequence<TryLockModes...>>
 {
-    using type = tuple<shared_mutex_wrapper<SharedMutex, LockMode, TryLockModes>...>;
+    using type = testing::Types<shared_mutex_wrapper<SharedMutex, LockMode, TryLockModes>...>;
 };
 
 template <typename SharedMutex, lock_mode ...LockModes, typename TryLockModeSequence>
-requires (!is_tuple<SharedMutex>::value && sizeof...(LockModes) > 1)
+requires (sizeof...(LockModes) > 1)
 struct shared_mutex_tuple<SharedMutex, lock_mode_sequence<LockModes...>, TryLockModeSequence>
 {
     using type = merge_tuples_t<shared_mutex_tuple_t<SharedMutex, lock_mode_sequence<LockModes>, TryLockModeSequence>...>;
 };
 
-template <typename ...SharedMutexes, typename LockModeSequence, typename TryLockModeSequence>
-requires (sizeof...(SharedMutexes) > 1)
-struct shared_mutex_tuple<tuple<SharedMutexes...>, LockModeSequence, TryLockModeSequence>
-{
-    using type = merge_tuples_t<shared_mutex_tuple_t<SharedMutexes, LockModeSequence, TryLockModeSequence>...>;
-};
-
-// =================================
-
-template <typename ...Types>
-struct convert_tuple_to_test_types;
-
-template <typename ...Types>
-using convert_tuple_to_test_types_t = convert_tuple_to_test_types<Types...>::type;
-
-template <typename ...Types>
-struct convert_tuple_to_test_types<tuple<Types...>>
-{
-    using type = testing::Types<Types...>;
-};
-
-using test_shared_mutex_tuple = convert_tuple_to_test_types_t<merge_tuples_t<
+using test_shared_mutex_tuple = merge_tuples_t<
         shared_mutex_tuple_t<
-            tuple<slontia::shared_mutex, std::shared_mutex>,
+            slontia::shared_mutex,
             lock_mode_sequence<lock_mode::k_lock, lock_mode::k_try_lock>,
             lock_mode_sequence<lock_mode::k_try_lock>>,
         shared_mutex_tuple_t<
-            tuple<slontia::shared_timed_mutex, std::shared_timed_mutex>,
+            slontia::shared_timed_mutex,
             lock_mode_sequence<lock_mode::k_lock, lock_mode::k_try_lock, lock_mode::k_try_lock_for, lock_mode::k_try_lock_until>,
             lock_mode_sequence<lock_mode::k_try_lock, lock_mode::k_try_lock_for, lock_mode::k_try_lock_until>>
-    >>;
+    >;
 
 template <typename SharedMutex>
-struct test_shared_mutex : protected SharedMutex, public testing::Test
-{
-};
+struct test_shared_mutex : protected SharedMutex, public testing::Test {};
 
 TYPED_TEST_SUITE(test_shared_mutex, test_shared_mutex_tuple);
-
-// =======================================================
 
 TYPED_TEST(test_shared_mutex, shared_lock_for_several_times)
 {
@@ -249,6 +213,20 @@ TYPED_TEST(test_shared_mutex, cannot_unique_lock_until_all_shared_unlocked)
     this->unlock_shared();
     EXPECT_FALSE(this->try_lock());
     this->unlock_shared();
+    EXPECT_TRUE(this->try_lock());
+}
+
+TYPED_TEST(test_shared_mutex, lock_and_unlock_in_different_thread)
+{
+    this->lock();
+    std::jthread{[this] { this->unlock(); }};
+    EXPECT_TRUE(this->try_lock());
+}
+
+TYPED_TEST(test_shared_mutex, lock_and_unlock_shared_in_different_thread)
+{
+    this->lock_shared();
+    std::jthread{[this] { this->unlock_shared(); }};
     EXPECT_TRUE(this->try_lock());
 }
 
