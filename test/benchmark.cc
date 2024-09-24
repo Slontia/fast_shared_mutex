@@ -21,8 +21,6 @@ DEFINE_uint32(write_threads, 1, "Number of threads to write");
 DEFINE_uint32(try_write_threads, 1, "Number of threads to try to write");
 DEFINE_uint32(try_write_1ms_threads, 1, "Number of threads to try to write for 1 millisecond");
 DEFINE_uint32(operation_num, 100000, "Number of operations for each thread");
-DEFINE_string(mutex, "slontia",
-        "The kind of shared mutex to test, can be 'std', 'std_timed', 'slontia', 'slontia_timed'");
 
 class object
 {
@@ -88,7 +86,7 @@ class thread_group
     struct thread_result
     {
         std::chrono::microseconds duration_;
-        uint32_t failure_count_{0};
+        uint32_t success_count_{0};
     };
 
   public:
@@ -112,10 +110,10 @@ class thread_group
                 {
                     std::cout << (static_cast<double>(duration.count()) / 1000) << "ms";
                 });
-        print_result_("failure rate", &thread_result::failure_count_,
-                [](const uint32_t failure_count)
+        print_result_("successful acquisition rate", &thread_result::success_count_,
+                [](const uint32_t success_count)
                 {
-                    std::cout << (static_cast<double>(failure_count) / FLAGS_operation_num * 100) << "%";
+                    std::cout << (static_cast<double>(success_count) / FLAGS_operation_num * 100) << "%";
                 });
         std::cout << "\n";
     }
@@ -129,7 +127,7 @@ class thread_group
 
     uint32_t actual_operate_count() const
     {
-        return threads_.size() * FLAGS_operation_num - sum_item_(&thread_result::failure_count_);
+        return sum_item_(&thread_result::success_count_);
     }
 
   private:
@@ -140,7 +138,7 @@ class thread_group
         latch.wait();
         const auto start_ts = std::chrono::steady_clock::now();
         for (uint32_t i = 0; i < FLAGS_operation_num; ++i) {
-            result.failure_count_ += !task();
+            result.success_count_ += task();
         }
         result.duration_ =
             std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start_ts);
