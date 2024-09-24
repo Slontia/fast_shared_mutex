@@ -118,3 +118,55 @@ make
 ctest
 ```
 
+## Benchmark
+
+The `benchmark` executable binary is compiled from `test/benchmark.cc`, which compares the locking/unlocking performance between this fast_shared_mutex library and the standard library.
+
+During the running of `benchmark`, multiple threads are created. Each thread concurrently performs a fixed quantity reading or writing operations. `benchmark` records the time cost and the rate of successful lock acquisition for each thread.
+
+Here is the running result on my machine. Note that the result is for reference only, and is not representative of the results of all platforms or compilers.
+
+**Environment**
+
+- Compiler: g++ 11.2.1
+- Operation system: CentOS Linux release 7.6
+- CPU: Intel(R) Xeon(R) Platinum 8361HC CPU @ 2.60GHz, 16 cores per socket, 2 threads per core
+
+**Threads**
+
+The test run these threads concurrently for each shared mutex. Each threads performs 1 million reading or writing operations.
+
+- 50 reading threads: invokes `mutex.lock_shared()`
+- 50 trying-to-read threads: invokes `mutex.try_lock_shared()`
+- 1 writing thread: invokes `mutex.lock()`
+- 1 trying-to-write thread: invokes `mutex.try_lock()`
+
+Here is the command to run `benchmark`.
+
+``` bash
+./benchmark --operation_num 1000000 --read_threads 50 --try_read_threads 50 --try_read_1ms_threads 0 --write_threads 1 --try_write_threads 1 --try_write_1ms_threads 0
+```
+
+**Performance**
+
+This table shows the average time cost for each kind of threads.
+
+| thread operation | `slontia::shared_mutex` | `std::shared_mutex` |
+| :-: | :-: | :-: |
+| `lock_shared()` | 7554.42 ms | 22064.7 ms |
+| `try_lock_shared()` | 40.461 ms | 21546.4 ms |
+| `lock()` | 7664.2 ms | 22370.8 ms |
+| `try_lock()` | 1173.85 ms | 6562.04 ms |
+
+**Success rate**
+
+This table shows the average rate of successful acquisition for each kind of threads.
+
+| thread operation | `slontia::shared_mutex` | `std::shared_mutex` |
+| :-: | :-: | :-: |
+| `try_lock_shared()` | 0.6148% | 99.9981% |
+| `try_lock()` | 18.7781% | 0% |
+
+**Conclusion**
+
+`slontia::shared_mutex` is more efficient in locking in both exclusive and shared mode, especially for `try_lock_shared`. But it is almost impossible to hold the `slontia::shared_mutex` by `try_lock_shared`, because acquisition for exclusive ownership has higher priority on `slontia::shared_mutex`.
